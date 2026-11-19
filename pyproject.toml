@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "vediting"
+version = "0.1.0"
+requires-python = ">=3.11"
+[project.optional-dependencies]
+speech = ["mlx-whisper; platform_system == 'Darwin' and platform_machine == 'arm64'"]
+handoff = ["opentimelineio>=0.17,<0.19"]
+[project.scripts]
+vediting = "vediting.cli:main"
+[tool.setuptools.packages.find]
+where = ["src"]

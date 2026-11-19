@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "skills": {
+    "video-editing": {
+      "source": "gitethanwoo/video-editing",
+      "commit": "8b633c2d698410e523f95335aa6433766264cc7f",
+      "sourceType": "github",
+      "skillPath": "skills/video-editing/SKILL.md",
+      "computedHash": "f52561a5bfe6c5e7dfb4dd5aca48dd49985d3234fa6233045a9cd091753a624e"
+    },
+    "analyze-video-editing": {
+      "source": "gitethanwoo/video-editing",
+      "commit": "8b633c2d698410e523f95335aa6433766264cc7f",
+      "sourceType": "github",
+      "skillPath": "skills/analyze-video-editing/SKILL.md"
+    },
+    "remotion-maps": {
+      "source": "remotion-dev/skills",
+      "commit": "6f55706d1069e512430582ad86e4e57dc07afe1b",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-maps/SKILL.md"
+    },
+    "captions-media-accessibility": {
+      "source": "calesthio/generative-media-skills",
+      "commit": "8c85352d5d75d4dcbe58480bd138e37b9742bab1",
+      "sourceType": "github",
+      "skillPath": "skills/production/audio-craft/captions-media-accessibility/SKILL.md"
+    },
+    "framejam": {
+      "source": "moritzkremb/framejam",
+      "commit": "bc45364aff90ba931d350e931291940fdc6e604c",
+      "sourceType": "github",
+      "skillPath": "skills/framejam/SKILL.md"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# Local development artifacts
+.DS_Store
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+/build/
+/dist/
+node_modules/
+/.claude/settings.local.json
+/CLAUDE.local.md
+
+# Local film projects, including briefs, media and exports
+/projects/
+
+# Skills installed from skills-lock.json
+/.agents/skills/video-editing/
+/.agents/skills/analyze-video-editing/
+/.agents/skills/remotion-maps/
+/.agents/skills/captions-media-accessibility/
+/.agents/skills/framejam/

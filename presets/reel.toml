@@ -1,0 +1,4 @@
+width = 1080
+height = 1920
+fps = "30000/1001"
+audio_rate = 48000
