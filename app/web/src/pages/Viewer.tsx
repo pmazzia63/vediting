@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, bytes, onEvent, timecode, type ExportInfo, type Note } from "../api";
+import { api, bytes, onEvent, timecode, type ExportInfo, type Located, type Note } from "../api";
 import { useStudio } from "../studio";
-import { revisionPrompt } from "../prompts";
+import { revisionPrompt, sourceLine } from "../prompts";
 
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 
@@ -157,7 +157,24 @@ export function Viewer() {
   };
 
   const sorted = useMemo(() => [...notes].sort((a, b) => a.start - b.start), [notes]);
-  const prompt = version ? revisionPrompt(promptAgent, project, goal, version, notes) : "";
+
+  /* Resolve each note to the shots, sources and words under it (bin/vediting locate). */
+  const [located, setLocated] = useState<Record<string, Located>>({});
+  const spanKey = JSON.stringify(sorted.map((n) => [n.id, n.start, n.end]));
+  useEffect(() => {
+    if (!version || !sorted.length) return setLocated({});
+    const ids = sorted.map((n) => n.id);
+    const timer = window.setTimeout(() => {
+      api
+        .locate(project, goal, version, sorted.map((n) => [n.start, n.end]))
+        .then((found) => setLocated(Object.fromEntries(found.map((f, i) => [ids[i], f]))))
+        .catch(() => setLocated({}));
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, goal, version, spanKey]);
+
+  const prompt = version ? revisionPrompt(promptAgent, project, goal, version, notes, located) : "";
   const hasText = notes.some((n) => n.text.trim());
 
   /* ---------- keyboard ---------- */
@@ -401,6 +418,7 @@ export function Viewer() {
                   if (e.key === "Escape") (e.target as HTMLTextAreaElement).blur();
                 }}
               />
+              {located[n.id] && <div className="muted small source-ref">↳ {sourceLine(located[n.id])}</div>}
             </div>
           ))}
         </div>

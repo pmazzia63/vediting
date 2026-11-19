@@ -1,4 +1,4 @@
-import { timecode, type Note } from "./api";
+import { timecode, type Located, type Note } from "./api";
 
 export type Agent = "claude" | "codex";
 
@@ -19,18 +19,27 @@ export function editPrompt(agent: Agent, project: string, goal: string) {
   return `${head}\nUse the cached timestamped transcripts for dialogue review. Follow the brief, review the cut and deliver a versioned master.`;
 }
 
-export function revisionPrompt(agent: Agent, project: string, goal: string, version: string, notes: Note[]) {
+/** Short source reference for a note, from `bin/vediting locate`. */
+export function sourceLine(found: Located | undefined) {
+  if (!found) return "";
+  const shots = found.shots.map((s) => `plan ${s.shot} · clip ${s.clip} @ ${s.source_in.toFixed(2)} s${s.chapter ? ` (${s.chapter})` : ""}`);
+  const audio = found.audio.map((a) => `audio ${a.audio} · ${a.asset ?? `clip ${a.clip}`} @ ${a.source_in.toFixed(2)} s${a.words ? ` « ${a.words} »` : ""}`);
+  return [...shots, ...audio].join(" ; ");
+}
+
+export function revisionPrompt(agent: Agent, project: string, goal: string, version: string, notes: Note[], located: Record<string, Located> = {}) {
   const head = agent === "claude" ? `/video-edit ${project} ${goal}` : `Use $video-edit for goal ${goal} in project ${project}.`;
   const lines = [...notes]
     .sort((a, b) => a.start - b.start)
     .filter((n) => n.text.trim())
     .map((n) => {
       const at = n.end !== null && n.end > n.start ? `${timecode(n.start)} → ${timecode(n.end)}` : timecode(n.start);
-      return `- ${at} : ${n.text.trim().replace(/\n+/g, " ")}`;
+      const where = sourceLine(located[n.id]);
+      return `- ${at} : ${n.text.trim().replace(/\n+/g, " ")}${where ? `\n  ↳ ${where}` : ""}`;
     });
   return [
     head,
-    `Révise ${version} avec ces retours (timecodes de l'export ${version}) :`,
+    `Révise ${version} avec ces retours (timecodes de l'export ${version}, ↳ = plans et sources résolus depuis review/${version}.json) :`,
     ...lines,
     `Consigne ces retours dans « Review feedback » du context.md du goal, puis livre une nouvelle version.`,
   ].join("\n");

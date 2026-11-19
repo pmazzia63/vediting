@@ -70,6 +70,13 @@ export type ExportInfo = {
 
 export type Note = { id: string; start: number; end: number | null; text: string; created: number };
 
+export type Located = {
+  start: number;
+  end: number | null;
+  shots: { shot: number; clip: string; chapter: string | null; timeline_in: number; source_in: number; source_range: [number, number] }[];
+  audio: { audio: number; clip?: string; asset?: string; source_in: number; gain_db: number; words?: string }[];
+};
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -102,6 +109,8 @@ export const api = {
   exports: (p: string, g: string) => request<ExportInfo[]>("GET", `${goalBase(p, g)}/exports`),
   notes: (p: string, g: string, v: string) => request<{ notes: Note[] }>("GET", `${goalBase(p, g)}/notes/${enc(v)}`),
   saveNotes: (p: string, g: string, v: string, notes: Note[]) => request("PUT", `${goalBase(p, g)}/notes/${enc(v)}`, { notes }),
+  locate: (p: string, g: string, v: string, spans: [number, number | null][]) =>
+    request<Located[]>("POST", `${goalBase(p, g)}/locate/${enc(v)}`, { spans }),
   terminal: (id: string) => request<{ id: string; agent: string | null; alive: boolean }>("GET", `/api/terminal/${enc(id)}`),
   startTerminal: (id: string, agent: string) => request("POST", `/api/terminal/${enc(id)}/start`, { agent }),
   sendToTerminal: (id: string, text: string) => request("POST", `/api/terminal/${enc(id)}/input`, { text }),

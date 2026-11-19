@@ -13,6 +13,7 @@ from pathlib import Path
 
 from . import media
 from .handoff import export_handoff
+from .locate import describe, locate, parse_span
 from .render import render
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -58,6 +59,13 @@ def inventory(p):
                 errors[str(path.relative_to(p))] = getattr(e, "stderr", "") or "No usable video stream"
     result = dict(clips=records, errors=errors, revision=digest([records, errors]))
     media.save_json(p / "work/inventory.json", result)
+    # Keep each revision so a timeline written against it can be checked clip by clip later.
+    history = p / "work/inventories"
+    history.mkdir(exist_ok=True)
+    if not (history / f"{result['revision']}.json").exists():
+        media.save_json(history / f"{result['revision']}.json",
+                        {"revision": result["revision"],
+                         "clips": {key: {k: r[k] for k in ("source", "size", "mtime_ns")} for key, r in records.items()}})
     return result
 
 
@@ -95,6 +103,12 @@ def execute():
         "prepare": "Prepare proxies, contact sheets and transcripts",
         "transcribe": "Create or reuse local timestamped transcripts",
     }
+    loc = sub.add_parser("locate", help="Map export timecodes to shots, sources and words")
+    loc.add_argument("project")
+    loc.add_argument("version", help="Rendered version, such as v0001")
+    loc.add_argument("spans", nargs="+", help="Seconds in the export, or START-END")
+    loc.add_argument("--goal")
+    loc.add_argument("--json", action="store_true")
     for cmd in ["status", "prompts", "ingest", "analyze", "review", "transcribe", "prepare", "render", "handoff"]:
         q = sub.add_parser(cmd, help=help_text.get(cmd))
         q.add_argument("project")
@@ -164,6 +178,16 @@ def execute():
         parser.error("Select an edit with --goal NAME")
     if a.cmd == "status":
         return status(p)
+    if a.cmd == "locate":
+        if not re.fullmatch(r"v[0-9]{4,}", a.version):
+            parser.error("Pass a rendered version such as v0001")
+        try:
+            spans = [parse_span(text) for text in a.spans]
+        except ValueError:
+            parser.error("Pass times in seconds, such as 12.5 or 12.5-15")
+        results = locate(p, a.version, spans)
+        print(json.dumps(results, ensure_ascii=False, indent=2) if a.json else describe(results))
+        return
     if a.cmd == "prompts":
         if goal:
             print(prompts(library.name, goal))

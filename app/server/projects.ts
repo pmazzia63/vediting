@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { HttpError, PROJECTS, ROOT, VERSION, projectDir } from "./paths.ts";
+import { runCli } from "./run.ts";
 
 const PENDING = "Review pending.";
 const VIDEO = /\.(mp4|mov|m4v|mxf|avi|mkv)$/i;
@@ -230,4 +231,23 @@ export async function writeNotes(project: string, goal: string, version: string,
   await writeFile(tmp, JSON.stringify({ version, notes: clean }, null, 2) + "\n");
   await rename(tmp, file);
   return { ok: true };
+}
+
+/* ---------- notes → sources ---------- */
+
+/** Resolve export timecodes to shots, source times and words with `bin/vediting locate`. */
+export async function locateSpans(project: string, goal: string, version: string, spans: unknown) {
+  if (!VERSION.test(version)) throw new HttpError(400, "Invalid version");
+  projectDir(project, goal);
+  if (!Array.isArray(spans) || spans.length > 200) throw new HttpError(400, "spans must be an array");
+  const args = spans.map((s: any) => {
+    const start = Number(s?.[0]);
+    const end = s?.[1] === null || s?.[1] === undefined ? null : Number(s[1]);
+    if (!Number.isFinite(start) || start < 0 || (end !== null && !Number.isFinite(end))) throw new HttpError(400, "Invalid span");
+    return end !== null && end > start ? `${start}-${end}` : `${start}`;
+  });
+  if (!args.length) return [];
+  const { code, out } = await runCli(["locate", project, version, ...args, "--goal", goal, "--json"]);
+  if (code !== 0) throw new HttpError(422, out.trim().split("\n").at(-1) || "locate failed");
+  return JSON.parse(out);
 }

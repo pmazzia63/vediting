@@ -180,3 +180,8 @@ pre.prompt { margin: 0; padding: 10px 12px; background: #0d0f12; border: 1px sol
   .viewer { grid-template-columns: 1fr; height: auto; }
   .video-wrap { min-height: 300px; }
 }
+
+.source-ref {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}

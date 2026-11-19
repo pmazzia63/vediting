@@ -7,7 +7,7 @@ import fastifyWebsocket from "@fastify/websocket";
 import { addClient, watchProjects } from "./events.ts";
 import { cancelJob, killAll, listJobs, startJob } from "./jobs.ts";
 import { HttpError, PROJECTS, ROOT, projectDir, slug } from "./paths.ts";
-import { goalExports, listProjects, projectDetail, readContext, readNotes, writeContext, writeNotes } from "./projects.ts";
+import { goalExports, listProjects, locateSpans, projectDetail, readContext, readNotes, writeContext, writeNotes } from "./projects.ts";
 import { runCli } from "./run.ts";
 import { attach, killSessions, sendInput, sessionInfo, startSession } from "./terminal.ts";
 
@@ -106,6 +106,9 @@ app.get("/api/projects/:project/goals/:goal/notes/:version", async (req: Req) =>
 );
 app.put("/api/projects/:project/goals/:goal/notes/:version", async (req: Req) =>
   writeNotes(req.params.project, req.params.goal, req.params.version, body(req).notes),
+);
+app.post("/api/projects/:project/goals/:goal/locate/:version", async (req: Req) =>
+  locateSpans(req.params.project, req.params.goal, req.params.version, body(req).spans),
 );
 
 /* ---------- terminal ---------- */

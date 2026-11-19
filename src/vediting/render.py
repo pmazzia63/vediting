@@ -39,10 +39,46 @@ def handoff_source(record):
     }
 
 
+def check_sources(p, cut, inventory):
+    """Accept a timeline from an older inventory when every clip it uses is unchanged."""
+    revision = cut.get("inventory_revision")
+    if revision == inventory["revision"]:
+        return
+    used = {row["id"] for row in cut["picture"] + cut["audio"] if "id" in row}
+    then_file = p / "work/inventories" / f"{revision}.json"
+    if not revision or not then_file.is_file():
+        raise ValueError("Inventory changed and the timeline revision is not on record. "
+                         "Review the selects and update the timeline revision.")
+    then = json.loads(then_file.read_text())["clips"]
+    changed = []
+    for key in sorted(used):
+        now = inventory["clips"].get(key)
+        old = then.get(key)
+        if now is None:
+            changed.append(f"{key} (missing)")
+        elif old is None or any(old[k] != now[k] for k in ("source", "size", "mtime_ns")):
+            changed.append(f"{key} ({now['source']})")
+    if changed:
+        raise ValueError("Sources changed since the timeline revision: " + ", ".join(changed))
+    print(f"Inventory {inventory['revision']} differs from timeline {revision}; the {len(used)} clips used are unchanged.",
+          flush=True)
+
+
+def measure_loudness(*args):
+    """Return the integrated loudness, loudness range and true peak of an audio rendition."""
+    out = run("ffmpeg", "-nostdin", "-hide_banner", "-nostats", *map(str, args)).stderr
+    summary = out[out.rfind("Summary:"):]
+    def value(label):
+        for line in summary.splitlines():
+            if line.strip().startswith(label + ":"):
+                return float(line.split(":")[1].split()[0])
+        return None
+    return {"integrated_lufs": value("I"), "lra_lu": value("LRA"), "true_peak_dbtp": value("Peak")}
+
+
 def render(p, timeline, inventory, root):
     cut = json.loads(timeline.read_text())
-    if cut["inventory_revision"] != inventory["revision"]:
-        raise ValueError("Inventory changed. Review the selects and update the timeline revision.")
+    check_sources(p, cut, inventory)
     fmt = tomllib.loads((p / "project.toml").read_text())["format"]
     preset = tomllib.loads((root / "presets" / (fmt + ".toml")).read_text())
     fps = Fraction(preset["fps"])
@@ -124,13 +160,29 @@ def render(p, timeline, inventory, root):
             samples = round(at*rate/fps)
             filters.append(chain+f",adelay={samples}S:all=1[a{n}]")
             labels.append(f"[a{n}]")
+        normalisation = None
         if labels:
-            filters.append("".join(labels)+f"amix=inputs={len(labels)}:normalize=0,apad,atrim=duration={duration}[mix]")
+            mix = "".join(labels)+f"amix=inputs={len(labels)}:normalize=0,apad,atrim=duration={duration}"
+            target, peak = preset.get("loudness"), preset.get("true_peak", -1)
+            if target is not None:
+                # First pass measures the mix, second pass applies a linear gain to reach the preset target.
+                stats = run("ffmpeg","-nostdin","-hide_banner","-nostats","-f","concat","-safe","0","-i",str(listing),
+                            *map(str,inputs),"-filter_complex",";".join(filters+[
+                                mix+f",loudnorm=I={target}:TP={peak}:LRA=11:print_format=json[m]"]),
+                            "-map","[m]","-f","null","-").stderr
+                measured = json.loads(stats[stats.rfind("{"):stats.rfind("}")+1])
+                if measured["input_i"] not in ("-inf", "inf") and float(measured["input_i"]) > -70:
+                    normalisation = {"target_lufs": target, "true_peak_dbtp": peak, "measured": measured}
+                    mix += (f",loudnorm=I={target}:TP={peak}:LRA=11:measured_I={measured['input_i']}:"
+                            f"measured_TP={measured['input_tp']}:measured_LRA={measured['input_lra']}:"
+                            f"measured_thresh={measured['input_thresh']}:offset={measured['target_offset']}:"
+                            f"linear=true,aresample={rate}")
+            filters.append(mix+"[mix]")
         else:
             filters.append(f"anullsrc=r={rate}:cl=stereo,atrim=duration={duration}[mix]")
         master = tmp / "master.mp4"
         ff("-f","concat","-safe","0","-i",listing,*inputs,"-filter_complex",";".join(filters),
-           "-map","0:v","-map","[mix]","-c:v","copy","-c:a","aac","-ac","2","-movflags","+faststart",master)
+           "-map","0:v","-map","[mix]","-c:v","copy","-c:a","aac","-b:a","256k","-ac","2","-movflags","+faststart",master)
         ff("-xerror","-i",master,"-f","null","-")
         info = probe(master,p)["metadata"]
         video = main_video(info)
@@ -138,7 +190,7 @@ def render(p, timeline, inventory, root):
             raise ValueError("Master frame count or dimensions differ from timeline")
         if abs(float(info["format"]["duration"])-duration)>0.1:
             raise ValueError("Master duration differs from timeline")
-        levels = run("ffmpeg","-hide_banner","-i",str(master),"-vn","-af","volumedetect","-f","null","-").stderr
+        loudness = measure_loudness("-i",master,"-vn","-af","ebur128=peak=true","-f","null","-")
         number = 1
         while (p / "exports" / f"v{number:04}.mp4").exists():
             number += 1
@@ -147,7 +199,7 @@ def render(p, timeline, inventory, root):
                            for kind, records in sources.items()}
         save_json(p/"review"/(name+".json"),dict(timeline=cut,preset=preset,encoder=version,
                   inventory_revision=inventory["revision"],sources=handoff_sources,streams=info["streams"],
-                  levels=[line for line in levels.splitlines() if "_volume:" in line],decoded=True))
+                  loudness=loudness,normalisation=normalisation,decoded=True))
         output = p/"exports"/(name+".mp4")
         master.replace(output)
         print(output)

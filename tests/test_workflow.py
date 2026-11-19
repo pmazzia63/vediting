@@ -54,6 +54,32 @@ class Workflow(unittest.TestCase):
                     self.assertTrue(report["decoded"])
                     self.assertEqual(report["streams"][0]["nb_frames"],"30")
 
+                # Loudness is normalised to the preset target and reported with EBU R128 values.
+                target = -16 if fmt == "youtube" else -14
+                self.assertLess(abs(report["loudness"]["integrated_lufs"] - target), 1.5)
+                self.assertLessEqual(report["loudness"]["true_peak_dbtp"], -0.5)
+
+                # Notes in export time resolve to the shot, source time and audio entries under them.
+                found = json.loads(call("locate", fmt, "v0001", "0.6", "0.1-0.6", "--json"))
+                self.assertEqual(found[0]["shots"][0]["clip"], b)
+                self.assertEqual(found[0]["shots"][0]["shot"], 2)
+                self.assertAlmostEqual(found[0]["shots"][0]["source_in"], 0.067, places=2)
+                self.assertEqual({e.get("asset") or e["clip"] for e in found[0]["audio"]}, {a, "room tone.MP4"})
+                self.assertEqual([s["shot"] for s in found[1]["shots"]], [1, 2])
+
+                # An unrelated new rush keeps the timeline renderable; a changed source used by it does not.
+                shutil.copyfile(p/"rushes/A/clip.MP4", p/"rushes/extra.MP4")
+                self.assertIn("unchanged", call("render", fmt, "test.json"))
+                (p/"rushes/B/clip.MP4").touch()
+                rejected = subprocess.run([cli,"render",fmt,"test.json"],capture_output=True,text=True)
+                self.assertNotEqual(rejected.returncode, 0)
+                self.assertIn("Sources changed", rejected.stderr)
+                (p/"rushes/extra.MP4").unlink()
+                call("ingest", fmt)
+                inv = json.loads((p/"work/inventory.json").read_text())
+                timeline["inventory_revision"] = inv["revision"]
+                (p/"edit/test.json").write_text(json.dumps(timeline))
+
                 if fmt == "youtube":
                     call("analyze", fmt)
                     notes = next(p.glob("work/*/*/moments.md"))
@@ -72,7 +98,7 @@ class Workflow(unittest.TestCase):
                     call("render", fmt, "test.json", "--goal", "arrival")
                     self.assertTrue((goal/"exports/v0001.mp4").exists())
                     self.assertTrue((goal/notes.relative_to(p)).samefile(notes))
-                    self.assertEqual(len(list((p/"exports").glob("*.mp4"))), 2)
+                    self.assertEqual(len(list((p/"exports").glob("*.mp4"))), 3)
 
                 if otio is not None:
                     (p/"edit/test.json").write_text("{}")

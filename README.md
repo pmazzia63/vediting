@@ -107,7 +107,9 @@ Save edit/v001.json in the project. Replace the revision and IDs with actual inv
 }
 ~~~
 
-For music or room tone put a file in assets/ and use "asset" with its relative filename in place of "id". Audio entries can overlap. Use gain_db and fade_in/fade_out (seconds) for the mix. An empty audio list produces silence. Render rechecks inventory, reuses finished picture segments, creates exports/vNNNN.mp4 and saves the timeline snapshot, source fingerprints, measured levels, stream metadata and encoder version under review/. Machine checks cover decoding, frame count, dimensions and duration. Codex records editorial review separately. After replacing source media, review its timecodes before updating the timeline revision.
+For music or room tone put a file in assets/ and use "asset" with its relative filename in place of "id". Audio entries can overlap. Use gain_db and fade_in/fade_out (seconds) for the mix. An empty audio list produces silence. Render checks that every clip the timeline uses is unchanged since its `inventory_revision` (each inventory revision is kept under `work/inventories/`, so new rushes or graphics do not invalidate existing timelines). It reuses finished picture segments, normalises the mix to the preset's `loudness` and `true_peak` targets with two-pass loudnorm, creates exports/vNNNN.mp4 and saves the timeline snapshot, source fingerprints, EBU R128 loudness, stream metadata and encoder version under review/. Machine checks cover decoding, frame count, dimensions and duration. Codex records editorial review separately. After replacing source media, review its timecodes before updating the timeline revision.
+
+To map screening notes back to sources, run `bin/vediting locate PROJECT vNNNN 12.5 40-46 --goal GOAL` (add `--json` for machine output). It prints the shot index, clip ID, source time and chapter under each export time, plus the audio placements and transcript words. The Studio Viewer resolves each note this way and includes the result in the revision prompt.
 
 Run the integration test with `python3 -m unittest discover -s tests`. It uses temporary synthetic clips and an isolated checkout.
 
