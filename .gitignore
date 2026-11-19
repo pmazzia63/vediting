@@ -24,3 +24,4 @@ node_modules/
 /.agents/skills/remotion-maps/
 /.agents/skills/captions-media-accessibility/
 /.agents/skills/framejam/
+/app/dist/

@@ -15,6 +15,17 @@ Omit the goal slug for a single-film project. The `/agents` menu lists the proje
 
 Claude Code can enable the bundled local FFmpeg MCP server from `.mcp.json`. Check its status with `/mcp`. For FrameJam screening, install the optional Claude integration with `npx -y framejam install claude` and start a new session. [FrameJam setup](https://www.framejam.ai/docs/install).
 
+## Local interface (vediting Studio)
+
+`bin/vediting-app` builds the interface if needed, starts it on http://127.0.0.1:5178 and opens the browser (Node 22+ required, first run installs `app/node_modules`). For development, run `npm --prefix app run dev` and open http://127.0.0.1:5179.
+
+- **Projets**: list and create collections (`bin/vediting new`).
+- **Projet**: open `rushes/` in the Finder, run the analysis (`ingest`) and the preparation (`prepare`) with live progress, send `/video-analyze` to the terminal, create videos (goals), edit their `context.md`, then estimate or generate.
+- **Visionneuse**: detects new `exports/vNNNN.mp4` files, frame-accurate playback (←/→ frame, I/O range, N note), notes saved in `review/vNNNN-notes.json`, and a revision prompt to copy or send to the terminal.
+- **Terminal**: Claude Code or Codex (or zsh) at the repository root, kept alive across pages (⌘J to toggle).
+
+The server listens on 127.0.0.1 only and rejects other hosts and origins. Set `VEDITING_PYTHON` to choose the interpreter (default `.venv/bin/python`, which carries MLX for transcription) and `PORT` to change the port.
+
 ## One collection, several edits
 
 ```sh

@@ -1,0 +1,12 @@
+#!/bin/sh
+# Start vediting Studio, the local web interface, on http://127.0.0.1:5178
+set -e
+APP="$(cd "$(dirname "$0")/../app" && pwd)"
+cd "$APP"
+[ -d node_modules ] || npm install
+if [ ! -f dist/index.html ] || [ -n "$(find web -newer dist/index.html -type f | head -1)" ]; then
+  npm run build
+fi
+PORT="${PORT:-5178}"
+( sleep 1.5 && open "http://127.0.0.1:$PORT" ) >/dev/null 2>&1 &
+exec npm start
