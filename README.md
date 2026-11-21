@@ -1,5 +1,66 @@
 # vediting
 
+Turn a folder of camera clips into a versioned film. The Python CLI inventories originals, builds review media and renders a JSON timeline with FFmpeg. An editing assistant can use those files to catalogue scenes, estimate a runtime and assemble a cut. Studio is the local browser interface for managing collections and leaving frame-specific feedback.
+
+## Set up a checkout
+
+Clone the repository using the URL from GitHub’s **Code** menu, then open a terminal in the checkout. You need Python 3.11 or newer and an FFmpeg installation with both `ffmpeg` and `ffprobe` on your PATH. The commands below use a Unix shell. Studio adds a Node.js 22.12+ requirement. Its Finder integration and the optional Apple Silicon speech backend are macOS-specific.
+
+```sh
+python3 --version
+ffmpeg -version
+ffprobe -version
+bin/vediting --help
+```
+
+The core CLI runs directly from the checkout. For optional Python packages, create an environment with `python3 -m venv .venv` and activate it with `source .venv/bin/activate`. Install the pinned companion skills with `bin/install-workbench` if you plan to use the assistant workflow. This step downloads from GitHub.
+
+## Try it with four seconds of generated footage
+
+Run these commands from the repository root. They create the same synthetic collection used in the screenshots.
+
+```sh
+bin/vediting new "Studio Demo"
+ffmpeg -f lavfi -i testsrc2=s=640x360:r=30 -t 4 -c:v libx264 projects/studio-demo/rushes/test-pattern.mp4
+bin/vediting analyze studio-demo
+bin/vediting goal studio-demo color-study --format reel
+```
+
+Open the generated `planche.html` under `projects/studio-demo/work/` to see sampled frames. To render a silent 60-frame reel, build a timeline using the actual IDs from your inventory.
+
+```sh
+python3 - <<'PYTHON'
+import json
+from pathlib import Path
+
+project = Path("projects/studio-demo")
+inventory = json.loads((project / "work/inventory.json").read_text())
+clip = next(iter(inventory["clips"]))
+timeline = {
+    "inventory_revision": inventory["revision"],
+    "picture": [{"id": clip, "in": 0, "frames": 60}],
+    "audio": [],
+}
+(project / "goals/color-study/edit/v001.json").write_text(json.dumps(timeline, indent=2))
+PYTHON
+bin/vediting render studio-demo v001.json --goal color-study
+bin/vediting-app
+```
+
+### Walk through Studio
+
+1. Open **Projets** and choose **Studio Demo**. Its card shows how many clips and edits belong to the collection.
+
+   ![Studio projects page with a synthetic collection containing one clip and one edit](docs/images/collections.png)
+
+2. In the collection, **Analyse des rushs** inventories the files. **Préparation** builds review media and runs transcription. The CLI demo above uses visual analysis only. **Catalogage IA** gives the assistant a prompt to record timecoded moments. Scroll to **Vidéos** to open the goal and its export.
+
+   ![Studio Demo collection showing the generated source clip, inventory and preparation controls](docs/images/collection.png)
+
+3. Choose **Visionner v0001**. Step through the reel with the arrow keys, press **I** and **O** to mark a range, then **N** to add a note. Copy the revision prompt to your editing assistant. The matching master is in `projects/studio-demo/goals/color-study/exports/v0001.mp4`.
+
+   ![Version viewer with playback, frame controls and a panel for review notes](docs/images/review.png)
+
 ## Claude Code setup
 
 Run `bin/install-workbench` from the repository root, then start `claude` there. [CLAUDE.md](CLAUDE.md) imports the shared [AGENTS.md](AGENTS.md) instructions. The links under `.claude/skills/` point to the shared project skills. The installer populates the optional companion skills at their pinned revisions.
@@ -17,7 +78,7 @@ Claude Code can enable the bundled local FFmpeg MCP server from `.mcp.json`. Che
 
 ## Local interface (vediting Studio)
 
-`bin/vediting-app` builds the interface if needed, starts it on http://127.0.0.1:5178 and opens the browser (Node 22+ required, first run installs `app/node_modules`). For development, run `npm --prefix app run dev` and open http://127.0.0.1:5179.
+`bin/vediting-app` builds the interface if needed, starts it on http://127.0.0.1:5178 and opens the browser (Node 22.12+ required, first run installs `app/node_modules`). For development, run `npm --prefix app run dev` and open http://127.0.0.1:5179.
 
 - **Projets**: list and create collections (`bin/vediting new`).
 - **Projet**: open `rushes/` in the Finder, run the analysis (`ingest`) and the preparation (`prepare`) with live progress, send `/video-analyze` to the terminal, create videos (goals), edit their `context.md`, then estimate or generate.
@@ -61,7 +122,7 @@ Use `--format reel` for vertical output. Copy your MP4s into the printed `rushes
 
 Add this checkout's bin directory to PATH to use `vediting` directly, or install editable with `python3 -m pip install -e .` in a virtual environment. Use an editable install so project files live in this checkout.
 
-Run `bin/install-workbench` on a new clone or to add missing skills to an existing checkout. It installs the pinned Scotland workbench and companion skills from `skills-lock.json` into `.agents/skills/`. For speech on Apple Silicon, activate a virtual environment and install the optional dependency with `python -m pip install -e '.[speech]'`. You can also use an existing MLX Whisper environment by running its `bin/python` with `bin/vediting transcribe japan-by-train --skip-graphics` as arguments. First transcription requires a model download or a local model path via `--model`. The rest of the CLI works without MLX.
+Run `bin/install-workbench` on a new clone or to add missing skills to an existing checkout. It installs the pinned editing workbench and companion skills from `skills-lock.json` into `.agents/skills/`. For speech on Apple Silicon, activate a virtual environment and install the optional dependency with `python -m pip install -e '.[speech]'`. You can also use an existing MLX Whisper environment by running its `bin/python` with `bin/vediting transcribe japan-by-train --skip-graphics` as arguments. First transcription requires a model download or a local model path via `--model`. The rest of the CLI works without MLX.
 
 `bin/vediting transcribe PROJECT --skip-graphics` prepares transcripts for the camera footage and excludes generated clips under `rushes/graphics/`. Transcription reuses cached results for the same source revision and model. To process only likely speech, run `bin/vediting ingest PROJECT` and pass the relevant clip IDs from `work/inventory.json`. Omit `--skip-graphics` to include generated clips. The command prints each output directory under `projects/PROJECT/work/`, where `transcript-*.json` contains timestamped text and the audio stream offset for dialogue review. If MLX cannot access Metal in the assistant's session, run the command in Terminal on the Mac.
 
@@ -84,7 +145,7 @@ Existing `$video-project` prompts still route to the estimate or edit skill. Dur
 | --- | --- |
 | Reference and selects | `analyze-video-editing` breaks down a supplied reference into timecoded observations under `work/references/`. |
 | Graphics | `remotion-maps` builds animated routes with the workbench's Remotion template. Render each map into `rushes/graphics/` and re-ingest to add it to the timeline. |
-| Screening and revisions | `framejam` lets you annotate a local versioned MP4 by frame. Record its version and notes in `context.md` before applying feedback to a new edit. The skill is local to the repo. The review UI needs the separate [FrameJam setup](https://www.framejam.ai/docs/install) and Node 22+. |
+| Screening and revisions | `framejam` lets you annotate a local versioned MP4 by frame. Record its version and notes in `context.md` before applying feedback to a new edit. The skill is local to the repo. The review UI needs the separate [FrameJam setup](https://www.framejam.ai/docs/install) and Node 22.12+. |
 | Caption delivery | `captions-media-accessibility` checks requested captions against the final picture and mix. Use the FFmpeg tools for subtitle preparation or burn-in and version any delivered sidecars with the master. |
 | Editable delivery | `timeline-handoff` exports an editable cut for Resolve alongside the checked MP4. |
 
@@ -113,4 +174,8 @@ To map screening notes back to sources, run `bin/vediting locate PROJECT vNNNN 1
 
 Run the integration test with `python3 -m unittest discover -s tests`. It uses temporary synthetic clips and an isolated checkout.
 
-The Scotland workflow also used the machine-installed ffmpeg-skill. A local copy, including its license and scripts, now lives under .agents/skills/ffmpeg-skill so its inspection and delivery tools travel with this repository.
+## Privacy and licensing
+
+Film workspaces live under the Git-ignored `projects/` directory. This includes originals, briefs, transcripts, screening notes, timelines and exports. Back this directory up separately. Shared defaults in `memory/editing.md` are tracked. Keep personal notes in a project brief. An OTIO handoff can include local media paths, so inspect it before sharing. Studio runs locally. When using an external editing assistant, its own data settings apply to material you provide.
+
+Project code is distributed under the [MIT license](LICENSE). The bundled FFmpeg skill includes its [upstream license and attribution](.agents/skills/ffmpeg-skill/LICENSE). Optional companion skills are fetched from the repositories listed in `skills-lock.json` and carry their upstream terms.

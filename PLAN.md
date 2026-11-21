@@ -26,7 +26,7 @@ presets/{reel,youtube}.toml      Canvas, frame rate policy, mix and export defau
 .agents/skills/video-project/   Shared project setup and transcript reuse
 .agents/skills/video-estimate/  Duration assessment and timecoded budget
 .agents/skills/video-edit/      Editing, revisions and delivery
-.agents/skills/video-editing/   Pinned Scotland workbench and references
+.agents/skills/video-editing/   Pinned editing workbench and references
 skills-lock.json                Source, revision and integrity of imported skill
 pyproject.toml                  Python CLI entry point and dependency groups
 src/vediting/                   Project creation, ingest, timeline, render and QC
@@ -43,17 +43,7 @@ projects/<slug>/
   exports/                      Versioned delivery files
 ~~~
 
-Track briefs, configuration, editorial decisions and timelines in Git. Ignore rushes, private media assets, derived media, transcripts and exports by default. Store paths relative to the project. Keep shared preferences editable in one place. Project instructions override a general preference. Put feedback from one screening in the project brief until the user asks to apply it across films.
-
-## What to extract from Scotland
-
-| Existing component in scotland_montage | Reuse and required change |
-| --- | --- |
-| AGENTS.md and MONTAGE.md | Keep the short agent entry point leading to one human-readable project memory. Extract approved preferences about interactions, patient shots and location sound. Keep the twenty-minute target, itinerary and search for Elise in Scotland’s brief. |
-| scripts/derush.py | Preserve inventory, native-cadence 720p proxies with audio, timed HTML contact sheets, word-level MLX Whisper transcripts, audio stream offsets and cache reuse. Pass project paths explicitly. Include source-relative path in asset identity so two cards can both contain C0001.MP4. |
-| scripts/monter_film.py | Keep source-change checks, bounds checks, rational frame arithmetic, chapter positions, segment rendering and assembly. Replace DJI filename parsing, fixed 30000/1001 cadence, Glasgow pilot dependency and film-v1 paths with manifest and timeline inputs. |
-| .agents/skills/video-editing and skills-lock.json | Start from the exact locked revision 8b633c2d698410e523f95335aa6433766264cc7f. Reuse video_workbench.py, editorial-plan template, workflow and quality gates. Inspect license and dependency requirements before redistribution. Use the included Remotion template when an edit calls for graphics. |
-| derushage/pilote, film-v1 and reel-work-song | Use the pilot, long-form selections and separate reel revisions as reference cases. Compare timing, framing, source sound and review artifacts on representative excerpts. |
+Keep briefs, editorial decisions, media, transcripts, timelines and exports inside the ignored projects directory. Store paths relative to the project. Keep shared preferences editable in one place. Project instructions override a general preference. Put feedback from one screening in the project brief until the user asks to apply it across films.
 
 Use the FFmpeg skill for probing, reframing, levels and delivery checks where it already provides the operation. Keep one authoritative timeline and renderer. Codex handles story judgment and the CLI handles repeatable media operations. The estimate and edit skills share the project brief, inventory and transcripts so every decision lands in the same project.
 
@@ -67,7 +57,7 @@ Seed shared memory with the following proposed defaults, which can be adjusted a
 - When a speaker continues over a picture edit, put the full spoken phrase on its own audio track. Cover the visual join with a relevant reaction, detail or location shot. Return on a natural gesture or pause. Listen across both joins with the screen off. If the spoken recording itself has a gap, find a natural phrase boundary and matching room tone. An insert alone cannot repair missing words.
 - Let the next location’s sound begin just before its picture when it helps orientation. Let meaningful dialogue or ambience carry over a cut when it connects two shots. Preserve the speaker’s meaning and believable spatial continuity.
 - Check uncertain words against the recording. Inspect movement around both ends of each select. A thumbnail can locate a face but cannot tell whether the shot settles or the reaction finishes.
-- Let music yield to conversation. Keep characteristic location sound audible. Introduce dates, maps and titles when the viewer needs orientation. For a travel film, settle the story before polishing graphics, as in Scotland.
+- Let music yield to conversation. Keep characteristic location sound audible. Introduce dates, maps and titles when the viewer needs orientation. For a travel film, settle the story before polishing graphics.
 - For a reel, identify one central moment and check each vertical crop in motion. For YouTube, use chapters when the material supports them and leave space for longer scenes. Proposed project presets are 1080×1920 and 1920×1080 respectively. Format alone never determines running time.
 
 ## Estimating runtime
@@ -91,10 +81,10 @@ Budget each beat from actual unique selections. Count a twelve-second quote cove
 | Order | Deliverable | Demonstration |
 | --- | --- | --- |
 | 1 | CLI skeleton, shared memory, project template, presets and selector | Create one reel and one YouTube project. Reopen each in a fresh session. Duplicate creation leaves the original brief intact. |
-| 2 | Adapt Scotland ingest and review tooling | Import nested cards containing identical filenames, silent footage and a rotated clip. Run twice, confirm unchanged proxies are reused, replace one clip and verify selective invalidation. |
-| 3 | Estimate skill and editable context | Produce a timecoded chapter budget for a Scotland excerpt. Check summed runtime and overlapping audio. Rerun after adding footage and verify handwritten notes survive. |
+| 2 | Implement ingest and review tooling | Import nested cards containing identical filenames, silent footage and a rotated clip. Run twice, confirm unchanged proxies are reused, replace one clip and verify selective invalidation. |
+| 3 | Estimate skill and editable context | Produce a timecoded chapter budget for a sample scene. Check summed runtime and overlapping audio. Rerun after adding footage and verify handwritten notes survive. |
 | 4 | Timeline and renderer | Recreate a representative pilot sequence. Put B-roll over continuous dialogue, verify source audio alignment and chapter boundaries, then interrupt and resume a render. |
 | 5 | Reel and YouTube delivery, QC and revisions | Export both formats from sample rushes. Review the moving crop and intelligibility. Request one shorter beat and recover both the first and revised export from their timelines. |
-| 6 | End-to-end trial | Start a genuinely new trip using only its name, format, copied rushes and brief. Complete estimation and delivery from the two prompts without editing Python, inserting machine-specific paths or referring back to the Scotland folder. |
+| 6 | End-to-end trial | Start a genuinely new trip using only its name, format, copied rushes and brief. Complete estimation and delivery from the two prompts without editing Python, inserting machine-specific paths. |
 
 The first milestone worth using on real footage is 3. It delivers project creation, reusable memory and an evidence-based duration estimate while the renderer is being generalized. The full workflow is ready after milestone 6.
